@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -72,10 +73,6 @@ fun RangeSlider(
         derivedStateOf { mutableStateOf(false) }
     }
 
-    val rightTooltipOverlapping by remember {
-        derivedStateOf { mutableStateOf(false) }
-    }
-
     var leftCircleOffset by remember {
         mutableStateOf(Offset.Zero)
     }
@@ -94,12 +91,7 @@ fun RangeSlider(
     )
 
     val tooltipAnim1 by animateFloatAsState(
-        targetValue = if (leftTooltipOverlapping.value) 1f else 0f,
-        animationSpec = tween(durationMillis = 300)
-    )
-
-    val tooltipAnim2 by animateFloatAsState(
-        targetValue = if (rightTooltipOverlapping.value) 1f else 0f,
+        targetValue = if (leftTooltipOverlapping.value) -180f else 0f,
         animationSpec = tween(durationMillis = 300)
     )
 
@@ -218,40 +210,39 @@ fun RangeSlider(
         //draw left Tooltip
         val leftL = leftCircleOffset.x - tooltipWidth.toPx() / 2f
         val topL =
-            leftCircleOffset.y - tooltipSpacing.toPx() - circleRadiusInPx - tooltipHeight.toPx() - tooltipAnim1 * (tooltipHeight.toPx() + tooltipTriangleSize.toPx())
+            leftCircleOffset.y - tooltipSpacing.toPx() - circleRadiusInPx - tooltipHeight.toPx()
 
         val leftR = rightCircleOffset.x - tooltipWidth.toPx() / 2f
         val topR =
-            rightCircleOffset.y - tooltipSpacing.toPx() - circleRadiusInPx - tooltipHeight.toPx() - tooltipAnim2 * (tooltipHeight.toPx() + tooltipTriangleSize.toPx())
+            rightCircleOffset.y - tooltipSpacing.toPx() - circleRadiusInPx - tooltipHeight.toPx()
 
-        if (leftCircleDragging) {
+        if (leftCircleDragging || rightCircleDragging) {
             leftTooltipOverlapping.value = (leftL + tooltipWidth.toPx()) >= leftR
         }
-        if (rightCircleDragging) {
-            rightTooltipOverlapping.value = (leftL + tooltipWidth.toPx()) >= leftR
-        }
-        drawPath(
-            path.apply {
-                reset()
-                addRoundRect(
-                    RoundRect(
-                        left = leftL,
-                        top = topL,
-                        right = leftL + tooltipWidth.toPx(),
-                        bottom = topL + tooltipHeight.toPx(),
-                        cornerRadius = CornerRadius(x = 15f, y = 15f)
+        rotate(tooltipAnim1, pivot = leftCircleOffset) {
+            drawPath(
+                path.apply {
+                    reset()
+                    addRoundRect(
+                        RoundRect(
+                            left = leftL,
+                            top = topL,
+                            right = leftL + tooltipWidth.toPx(),
+                            bottom = topL + tooltipHeight.toPx(),
+                            cornerRadius = CornerRadius(x = 15f, y = 15f)
+                        )
                     )
-                )
-                moveTo(
-                    x = leftCircleOffset.x - tooltipTriangleSize.toPx(),
-                    y = leftCircleOffset.y - circleRadiusInPx - tooltipSpacing.toPx() - tooltipAnim1 * (tooltipHeight.toPx() + tooltipTriangleSize.toPx())
-                )
-                relativeLineTo(tooltipTriangleSize.toPx(), tooltipTriangleSize.toPx())
-                relativeLineTo(tooltipTriangleSize.toPx(), -tooltipTriangleSize.toPx())
-                close()
-            },
-            color = Color.Gray
-        )
+                    moveTo(
+                        x = leftCircleOffset.x - tooltipTriangleSize.toPx(),
+                        y = leftCircleOffset.y - circleRadiusInPx - tooltipSpacing.toPx()
+                    )
+                    relativeLineTo(tooltipTriangleSize.toPx(), tooltipTriangleSize.toPx())
+                    relativeLineTo(tooltipTriangleSize.toPx(), -tooltipTriangleSize.toPx())
+                    close()
+                },
+                color = Color(191, 0, 0)
+            )
+        }
 
         //draw right Tooltip
         drawPath(
@@ -268,13 +259,13 @@ fun RangeSlider(
                 )
                 moveTo(
                     x = rightCircleOffset.x - tooltipTriangleSize.toPx(),
-                    y = rightCircleOffset.y - circleRadiusInPx - tooltipSpacing.toPx() - tooltipAnim2 * (tooltipHeight.toPx() + tooltipTriangleSize.toPx())
+                    y = rightCircleOffset.y - circleRadiusInPx - tooltipSpacing.toPx()
                 )
                 relativeLineTo(tooltipTriangleSize.toPx(), tooltipTriangleSize.toPx())
                 relativeLineTo(tooltipTriangleSize.toPx(), -tooltipTriangleSize.toPx())
                 close()
             },
-            color = Color.Gray
+            color = Color.Red
         )
 
         val textLeft = (progress1 * 100).roundToInt().toString()
@@ -284,13 +275,15 @@ fun RangeSlider(
         )
         var textSize = textLayoutResult.size
 
-        drawText(
-            textLayoutResult = textLayoutResult,
-            topLeft = Offset(
-                x = leftL + tooltipWidth.toPx() / 2 - textSize.width / 2,
-                y = topL + tooltipHeight.toPx() / 2 - textSize.height / 2
-            ),
-        )
+        rotate(tooltipAnim1, pivot = leftCircleOffset) {
+            drawText(
+                textLayoutResult = textLayoutResult,
+                topLeft = Offset(
+                    x = leftL + tooltipWidth.toPx() / 2 - textSize.width / 2,
+                    y = topL + tooltipHeight.toPx() / 2 - textSize.height / 2
+                )
+            )
+        }
 
         val textRight = (progress2 * 100).roundToInt().toString()
         textLayoutResult = textMeasurer.measure(
